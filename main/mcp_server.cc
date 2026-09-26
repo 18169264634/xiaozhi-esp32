@@ -17,9 +17,58 @@
 #include "lvgl_image.h"
 #include "lvgl_theme.h"
 #include "settings.h"
+#include <driver/uart.h>
+#include <string.h>
 #include <lwip/sockets.h>
 #include <string.h>
 #define TAG "MCP"
+
+// ==================== 刷卡事件接收 ====================
+char last_card_info[64] = "None";
+unsigned long last_card_time = 0;
+
+#define CARD_UART_PORT    UART_NUM_1
+#define CARD_UART_RX_PIN  GPIO_NUM_43
+#define CARD_UART_TX_PIN  GPIO_NUM_44
+#define CARD_UART_BAUD    9600
+#define CARD_BUF_SIZE     128
+
+void card_uart_task(void *pvParameters) {
+    vTaskDelay(pdMS_TO_TICKS(15000));  // 等网络栈初始化
+
+    uart_config_t cfg = {
+        .baud_rate = CARD_UART_BAUD,
+        .data_bits = UART_DATA_8_BITS,
+        .parity = UART_PARITY_DISABLE,
+        .stop_bits = UART_STOP_BITS_1,
+        .flow_ctrl = UART_HW_FLOWCTRL_DISABLE,
+    };
+    uart_param_config(CARD_UART_PORT, &cfg);
+    uart_set_pin(CARD_UART_PORT, CARD_UART_TX_PIN, CARD_UART_RX_PIN,
+                 UART_PIN_NO_CHANGE, UART_PIN_NO_CHANGE);
+    uart_driver_install(CARD_UART_PORT, CARD_BUF_SIZE * 2, 0, 0, NULL, 0);
+
+    uint8_t* data = (uint8_t*)malloc(CARD_BUF_SIZE);
+    while (1) {
+        int len = uart_read_bytes(CARD_UART_PORT, data, CARD_BUF_SIZE - 1,
+                                  100 / portTICK_PERIOD_MS);
+        if (len > 0) {
+            data[len] = '\0';
+            if (strncmp((char*)data, "#CARD:", 6) == 0) {
+                strncpy(last_card_info, (char*)data + 6, sizeof(last_card_info) - 1);
+                last_card_time = millis();
+                ESP_LOGI(TAG, "Card event: %s", last_card_info);
+
+                // 回复 ACK
+                const char* ack = "#ACK\n";
+                uart_write_bytes(CARD_UART_PORT, ack, strlen(ack));
+            }
+        }
+    }
+    free(data);
+}
+// ==================== 刷卡接收结束 ====================
+
 // ==================== 自定义 UDP 接收 ====================
 
 char sensor_data_buffer[256] = {0};
