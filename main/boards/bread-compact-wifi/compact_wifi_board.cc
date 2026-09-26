@@ -148,19 +148,23 @@ private:
     }
 
     // 物联网初始化，逐步迁移到 MCP 协议
-    void InitializeTools() {
-        static LampController lamp(LAMP_GPIO);
-                // ==================== 传感器数据查询工具 ====================
-        extern char sensor_data_buffer[256];
-        auto& mcp_server = McpServer::GetInstance();
-        mcp_server.AddTool("self.sensor.get_data",
-            "Get the latest sensor data from the sub-module via UDP, including temperature, light, motion, distance, etc.",
-            PropertyList(),
-            [](const PropertyList& properties) -> ReturnValue {
-                return std::string(sensor_data_buffer);
-            });
-    }
+void InitializeTools() {
+    static LampController lamp(LAMP_GPIO);
 
+    // ==================== 启动 UDP 接收任务 ====================
+    extern char sensor_data_buffer[256];
+    extern void udp_receiver_task(void *pvParameters);
+    xTaskCreate(udp_receiver_task, "udp_receiver_task", 4096, NULL, 10, NULL);
+
+    // ==================== 注册传感器数据查询工具 ====================
+    auto& mcp_server = McpServer::GetInstance();
+    mcp_server.AddTool("self.sensor.get_data",
+        "Get the latest sensor data from the sub-module via UDP, including temperature, light, motion, distance, etc.",
+        PropertyList(),
+        [](const PropertyList& properties) -> ReturnValue {
+            return std::string(sensor_data_buffer);
+        });
+}
 public:
     CompactWifiBoard() :
         boot_button_(BOOT_BUTTON_GPIO),
