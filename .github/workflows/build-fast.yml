@@ -24,13 +24,7 @@ jobs:
           source $IDF_PATH/export.sh
           python scripts/build.py bread-compact-wifi --name bread-compact-wifi
 
-      - name: List build outputs
-        shell: bash
-        run: |
-          echo "=== Build dir ==="
-          ls -la build/ || echo "no build dir"
-          echo "=== Finding .bin files ==="
-          find . -name "*.bin" -type f 2>/dev/null | head -30
+      
 
       - name: Upload firmware
         uses: actions/upload-artifact@v4
