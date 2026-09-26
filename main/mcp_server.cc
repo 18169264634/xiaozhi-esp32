@@ -22,10 +22,10 @@
 #define TAG "MCP"
 // ==================== 自定义 UDP 接收 ====================
 
-static char sensor_data_buffer[256] = {0};
+char sensor_data_buffer[256] = {0};
 #define UDP_SERVER_PORT 8888
 
-static void udp_receiver_task(void *pvParameters) {
+void udp_receiver_task(void *pvParameters) {
     char rx_buffer[128];
     struct sockaddr_in dest_addr;
     dest_addr.sin_addr.s_addr = htonl(INADDR_ANY);
