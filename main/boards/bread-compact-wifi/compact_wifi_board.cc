@@ -150,6 +150,15 @@ private:
     // 物联网初始化，逐步迁移到 MCP 协议
     void InitializeTools() {
         static LampController lamp(LAMP_GPIO);
+                // ==================== 传感器数据查询工具 ====================
+        extern char sensor_data_buffer[256];
+        auto& mcp_server = McpServer::GetInstance();
+        mcp_server.AddTool("self.sensor.get_data",
+            "Get the latest sensor data from the sub-module via UDP, including temperature, light, motion, distance, etc.",
+            PropertyList(),
+            [](const PropertyList& properties) -> ReturnValue {
+                return std::string(sensor_data_buffer);
+            });
     }
 
 public:
