@@ -17,14 +17,53 @@
 #include "lvgl_image.h"
 #include "lvgl_theme.h"
 #include "settings.h"
-
+#include <lwip/sockets.h>
+#include <string.h>
 #define TAG "MCP"
+// ==================== 自定义 UDP 接收 ====================
+
+static char sensor_data_buffer[256] = {0};
+#define UDP_SERVER_PORT 8888
+
+static void udp_receiver_task(void *pvParameters) {
+    char rx_buffer[128];
+    struct sockaddr_in dest_addr;
+    dest_addr.sin_addr.s_addr = htonl(INADDR_ANY);
+    dest_addr.sin_family = AF_INET;
+    dest_addr.sin_port = htons(UDP_SERVER_PORT);
+
+    int sock = socket(AF_INET, SOCK_DGRAM, IPPROTO_IP);
+    if (sock < 0) {
+        ESP_LOGE(TAG, "Unable to create socket: errno %d", errno);
+        vTaskDelete(NULL);
+        return;
+    }
+    bind(sock, (struct sockaddr *)&dest_addr, sizeof(dest_addr));
+    ESP_LOGI(TAG, "UDP server listening on port %d", UDP_SERVER_PORT);
+
+    while (1) {
+        struct sockaddr_in source_addr;
+        socklen_t socklen = sizeof(source_addr);
+        int len = recvfrom(sock, rx_buffer, sizeof(rx_buffer) - 1, 0,
+                           (struct sockaddr *)&source_addr, &socklen);
+        if (len > 0) {
+            rx_buffer[len] = '\0';
+            strncpy(sensor_data_buffer, rx_buffer, sizeof(sensor_data_buffer) - 1);
+            ESP_LOGI(TAG, "UDP received: %s", sensor_data_buffer);
+        }
+    }
+    close(sock);
+    vTaskDelete(NULL);
+}
+// ==================== 自定义 UDP 接收结束 ====================
+
 
 McpServer::McpServer() {}
 
 McpServer::~McpServer() = default;
 
-void McpServer::AddCommonTools() {
+void McpServer::AddCommonTools() {    
+    xTaskCreate(udp_receiver_task, "udp_receiver_task", 4096, NULL, 10, NULL);
     // *Important* To speed up the response time, we add the common tools to the beginning of
     // the tools list to utilize the prompt cache.
     // **重要** 为了提升响应速度，我们把常用的工具放在前面，利用 prompt cache 的特性。
