@@ -1,0 +1,44 @@
+name: Build Fast (Bread Compact WiFi)
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Build bread-compact-wifi
+    runs-on: ubuntu-latest
+    container:
+      image: espressif/idf:v6.1
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Build firmware
+        shell: bash
+        run: |
+          source $IDF_PATH/export.sh
+          python scripts/build.py bread-compact-wifi --name bread-compact-wifi
+
+      - name: List build outputs
+        shell: bash
+        run: |
+          echo "=== Build dir ==="
+          ls -la build/ || echo "no build dir"
+          echo "=== Finding .bin files ==="
+          find . -name "*.bin" -type f 2>/dev/null | head -30
+
+      - name: Upload firmware
+        uses: actions/upload-artifact@v4
+        with:
+          name: xiaozhi-firmware
+          path: |
+            build/merged-binary.bin
+            build/*.bin
+            build/bootloader/*.bin
+            build/partition_table/*.bin
+          if-no-files-found: warn
