@@ -156,13 +156,28 @@ void InitializeTools() {
     extern void udp_receiver_task(void *pvParameters);
     xTaskCreate(udp_receiver_task, "udp_receiver_task", 4096, NULL, 10, NULL);
 
-    // ==================== 注册传感器数据查询工具 ====================
+    // ==================== 启动刷卡接收任务 ====================
+    extern void card_uart_task(void *pvParameters);
+    xTaskCreate(card_uart_task, "card_uart_task", 4096, NULL, 10, NULL);
+
+    // ==================== 获取 McpServer 实例 ====================
     auto& mcp_server = McpServer::GetInstance();
+
+    // ==================== 注册传感器数据查询工具 ====================
     mcp_server.AddTool("self.sensor.get_data",
         "Get the latest sensor data from the sub-module via UDP, including temperature, light, motion, distance, etc.",
         PropertyList(),
         [](const PropertyList& properties) -> ReturnValue {
             return std::string(sensor_data_buffer);
+        });
+
+    // ==================== 注册刷卡查询工具 ====================
+    mcp_server.AddTool("self.card.get_last",
+        "Get the last card swiped on the access control reader. Returns the user ID (e.g. User001) or 'None'.",
+        PropertyList(),
+        [](const PropertyList& properties) -> ReturnValue {
+            extern char last_card_info[64];
+            return std::string(last_card_info);
         });
 }
 public:
