@@ -26,6 +26,7 @@ char sensor_data_buffer[256] = {0};
 #define UDP_SERVER_PORT 8888
 
 void udp_receiver_task(void *pvParameters) {
+    vTaskDelay(pdMS_TO_TICKS(30000));  // 等 15 秒
     char rx_buffer[128];
     struct sockaddr_in dest_addr;
     dest_addr.sin_addr.s_addr = htonl(INADDR_ANY);
